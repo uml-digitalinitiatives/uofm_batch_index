@@ -1,0 +1,8 @@
+name = UofM Batch Index
+description = "Batch index objects missed by FedoraGSearch"
+package = Islandora
+version = 7.x-dev
+core = 7.x
+php = 5.3
+dependencies[] = islandora
+dependencies[] = islandora_solr
