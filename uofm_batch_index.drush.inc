@@ -88,7 +88,7 @@ function uofm_batch_index($object, &$context){
    $user = variable_get('islandora_collection_search_gsearch_user',NULL);
    $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
    $ch = curl_init();
-   curl_setopt($ch, CURLOPT_URL,  $url "?" . http_build_query(array("operation"=>"updateIndex","action"=>"updateFromPid", "pid"=> $object)));
+   curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"updateFromPid", "pid"=> $object)));
    curl_setopt($ch, CURLOPT_HEADER, 0);
    curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
    curl_exec($ch);
