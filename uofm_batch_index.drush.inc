@@ -18,6 +18,12 @@ function uofm_batch_index_drush_command() {
 }
 
 function drush_uofm_batch_index_setup(){
+  $user = variable_get('islandora_collection_search_gsearch_user',NULL);
+  $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
+  if (is_null($user) || is_null($passwd)){
+    drupal_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
+    return;
+  }
   module_load_include('php','islandora_solr','SolrPhpClient/Apache/Solr/Service');
   $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
   #$path_parts = parse_url('digitalcollections.lib.umanitoba.ca:8080/solr');
@@ -78,16 +84,15 @@ function drush_uofm_batch_index_setup(){
 
 function uofm_batch_index($object, &$context){
    $context['message'] = 'Forcing index of object: ' . $object;
+   $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
+   $user = variable_get('islandora_collection_search_gsearch_user',NULL);
+   $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
    $ch = curl_init();
-   curl_setopt($ch, CURLOPT_URL, "http://localhost:8080/fedoragsearch/rest?" . http_build_query(array("operation"=>"updateIndex","action"=>"updateFromPid", "pid"=> $object)));
+   curl_setopt($ch, CURLOPT_URL,  $url "?" . http_build_query(array("operation"=>"updateIndex","action"=>"updateFromPid", "pid"=> $object)));
    curl_setopt($ch, CURLOPT_HEADER, 0);
-   curl_setopt($ch, CURLOPT_USERPWD, "fedoraAdmin:yayF3dora");
-   // grab URL and pass it to the browser
+   curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
    curl_exec($ch);
-
-   // close cURL resource, and free up system resources
    curl_close($ch);
-   
 }
 
 function drush_uofm_batch_index_finished($success, $results, $operations){

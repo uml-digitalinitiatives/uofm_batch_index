@@ -6,3 +6,4 @@ core = 7.x
 php = 5.3
 dependencies[] = islandora
 dependencies[] = islandora_solr
+dependencies[] = islandora_collection_search
