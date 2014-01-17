@@ -10,6 +10,10 @@ function uofm_batch_index_drush_command() {
         'description' => 'The SPARQL where clause, uses "$object" as the main variable.',
         'value' => 'required',
       ),
+      'timeout' => array(
+        'description' => 'Length of time (in secs) to run before exiting, if omitted run until complete.',
+        'value' => 'optional',
+      ),
     ),
     'callback' => 'uofm_batch_index_setup',
     'description' => 'Batch index objects missed by FedoraGSearch based on a Sparql query where clause',
