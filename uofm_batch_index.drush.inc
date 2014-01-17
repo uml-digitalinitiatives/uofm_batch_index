@@ -33,11 +33,13 @@ function uofm_batch_index_setup(){
   }
   module_load_include('inc', 'islandora', 'includes/utilities');
   module_load_include('php','islandora_solr','SolrPhpClient/Apache/Solr/Service');
-  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
-  #$path_parts = parse_url('digitalcollections.lib.umanitoba.ca:8080/solr');
-  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
 
+  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
+  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
   $solr->setCreateDocuments(0);
+
+  drupal_static_reset('islandora_get_tuque_connection');
+  $connection = islandora_get_tuque_connection();
   
   $where_param = drush_get_option('query_param', FALSE);
   
