@@ -86,8 +86,8 @@ function uofm_batch_index_setup(){
   
   if (count($operations) > 0){
     $op_array = array_chunk($operations,20);
-    while (timer_read('uofm_batch_index') < $lock_timeout){
-      $next = array_pop($op_array);
+    while (timer_read('uofm_batch_index') < ($lock_timeout * 1000)){
+      $next = array_shift($op_array); // Take the first set off the chunked array of operations.
       $batch = array(
          'operations' => $next,
          //'finished' => 'drush_uofm_batch_index_finished',
