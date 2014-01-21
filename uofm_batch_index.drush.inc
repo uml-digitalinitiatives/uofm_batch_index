@@ -24,6 +24,7 @@ function uofm_batch_index_drush_command() {
       'query_param' => array(
         'description' => 'The SPARQL where clause, uses "$object" as the main variable.',
         'value' => 'required',
+        'required' => TRUE,
       ),
     ),
     'aliases' => array('uofm_bi_pp'),
@@ -102,6 +103,7 @@ function drush_uofm_batch_index($object){
    curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
    curl_exec($ch);
    curl_close($ch);
+   db_update('uofm_batch_index')->fields(array('state' => 2))->condition('pid',$object);
 }
 
 function drush_uofm_batch_index_finished($success, $results, $operations){
@@ -144,8 +146,7 @@ function uofm_batch_index_preprocess(){
           'pid' => $object['object']['value'],
         ))->execute();
       } catch (Exception $e){
-        watchdog_exception('warning', $e);
-        drush_log('Unable to insert pid (' . $object['object']['value'] . ')','warning');
+        drush_log('Unable to insert pid (' . $object['object']['value'] . ') already exists','warning');
       }
     }
   }
