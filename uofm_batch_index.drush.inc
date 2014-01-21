@@ -4,19 +4,31 @@
 function uofm_batch_index_drush_command() {
   $items = array();
 
-  $items['uofm_batch_index'] = array(
+  $items['uofm_batch_index_process'] = array(
     'options' => array(
-      'query_param' => array(
-        'description' => 'The SPARQL where clause, uses "$object" as the main variable.',
-        'value' => 'required',
-      ),
+      
       'timeout' => array(
         'description' => 'Length of time (in secs) to run before exiting, if omitted run until complete.',
         'value' => 'optional',
       ),
     ),
+    'aliases' => array('uofm_batch_index'),
     'callback' => 'uofm_batch_index_setup',
     'description' => 'Batch index objects missed by FedoraGSearch based on a Sparql query where clause',
+    'drupal dependencies' => array('islandora', 'islandora_solr', 'islandora_collection_search'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
+  );
+  
+  $items['uofm_batch_index_preprocess'] = array(
+    'options' => array(
+      'query_param' => array(
+        'description' => 'The SPARQL where clause, uses "$object" as the main variable.',
+        'value' => 'required',
+      ),
+    ),
+    'aliases' => array('uofm_bi_pp'),
+    'callback' => 'uofm_batch_index_preprocess',
+    'description' => 'Run the query against the repository and store the IDs of all none indexed documents to be processed.',
     'drupal dependencies' => array('islandora', 'islandora_solr', 'islandora_collection_search'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
   );
@@ -25,23 +37,7 @@ function uofm_batch_index_drush_command() {
 }
 
 function uofm_batch_index_setup(){
-  $user = variable_get('islandora_collection_search_gsearch_user',NULL);
-  $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
-  if (is_null($user) || is_null($passwd)){
-    drupal_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
-    return;
-  }
-  module_load_include('inc', 'islandora', 'includes/utilities');
-  module_load_include('php','islandora_solr','SolrPhpClient/Apache/Solr/Service');
-
-  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
-  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
-  $solr->setCreateDocuments(0);
-
-  drupal_static_reset('islandora_get_tuque_connection');
-  $connection = islandora_get_tuque_connection();
-  
-  $where_param = drush_get_option('query_param', FALSE);
+  $batch_size = 20; // Number of records to process before we check the time again.
   
   $timeout = drush_get_option('timeout',3600.0);
   if (!isset($timeout)) {
@@ -65,31 +61,17 @@ function uofm_batch_index_setup(){
   
   $timer = timer_start('uofm_batch_index');
   
-
-  $query = 'select $object from <#ri> where {';
-  $query.= $where_param;
-  $query.= '}';
-  $results = $connection->repository->ri->sparqlQuery($query, 'unlimited');
-  $operations = array();
-  foreach ($results as $object) {
-    $solr_query = '+PID:("' . $object['object']['value'] . '")'; // Search for all the possible PIDs
-    $solr_params = array('fl'=>'PID'); // Get the PID and dc.title
-    $results = $solr->search($solr_query,0,10,$solr_params);
-    if ($results && $results->response->numFound <= 0){ // Only add if not in Solr index
-      array_push($operations, array("drush_uofm_batch_index",
-        array($object['object']['value']),
-        )
-      );
-      
-    }
-  }
+  $query = db_select('uofm_batch_index','u')->condition('u.status',0)->fields('u',array('pid'));
+  $num_ops = $query->countQuery()->execute()->fetchField();
   
-  if (count($operations) > 0){
-    $op_array = array_chunk($operations,20);
-    while (timer_read('uofm_batch_index') < ($lock_timeout * 1000)){
-      $next = array_shift($op_array); // Take the first set off the chunked array of operations.
+  if ($num_ops > 0){
+    drush_log("There are $num_ops items to be indexed.",'ok');
+    $loop_count = 0;
+    while (timer_read('uofm_batch_index') < ($lock_timeout * 1000) && ($loop_count * $batch_size) + $batch_size < $num_ops ){
+      $results = $query->range($loop_count,$batch_size)->execute()->fetchAll();
+      
       $batch = array(
-         'operations' => $next,
+         'operations' => $results,
          //'finished' => 'drush_uofm_batch_index_finished',
          'title' => t('Indexing missing object from repository'),
          'init_message' => t('Batch is starting.'),
@@ -102,12 +84,14 @@ function uofm_batch_index_setup(){
       $batch['progressive'] = FALSE;
       drush_backend_batch_process();
     }
+  } else {
+    drush_log('There are NO objects to be indexed','ok');
   }
   timer_stop('uofm_batch_index');
 }
 
 function drush_uofm_batch_index($object){
-   $context['message'] = 'Forcing index of object: ' . $object;
+   drush_log('Forcing index of object: ' . $object, 'ok');
    $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
    $user = variable_get('islandora_collection_search_gsearch_user',NULL);
    $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
@@ -123,4 +107,57 @@ function drush_uofm_batch_index($object){
 function drush_uofm_batch_index_finished($success, $results, $operations){
   // Print finished message to user.
   drush_log('Finished updating compound object sequence numbers.','ok');
+}
+
+function uofm_batch_index_preprocess(){
+  uofm_batch_index_cleanup(); // Delete old records so the table doesn't get huge.
+  $user = variable_get('islandora_collection_search_gsearch_user',NULL);
+  $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
+  if (is_null($user) || is_null($passwd)){
+    drupal_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
+    return;
+  }
+  module_load_include('inc', 'islandora', 'includes/utilities');
+  module_load_include('php','islandora_solr','SolrPhpClient/Apache/Solr/Service');
+
+  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
+  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
+  $solr->setCreateDocuments(0);
+
+  drupal_static_reset('islandora_get_tuque_connection');
+  $connection = islandora_get_tuque_connection();
+
+  $where_param = drush_get_option('query_param', FALSE);
+  
+  $query = 'select $object from <#ri> where {';
+  $query.= $where_param;
+  $query.= '}';
+  $results = $connection->repository->ri->sparqlQuery($query, 'unlimited');
+  $operations = array();
+  foreach ($results as $object) {
+    $solr_query = '+PID:("' . $object['object']['value'] . '")'; // Search for all the possible PIDs
+    $solr_params = array('fl'=>'PID'); // Get the PID and dc.title
+    $results = $solr->search($solr_query,0,10,$solr_params);
+    if ($results && $results->response->numFound <= 0){ // Only add if not in Solr index
+      try {
+        $nid = db_insert('uofm_batch_index_state')->fields(array(
+          'pid' => $object['object']['value'],
+        ))->execute();
+      } catch (Exception $e){
+        watchdog_exception('warning', $e);
+        drush_log('Unable to insert pid (' . $object['object']['value'] . ')','warning');
+      }
+    }
+  }
+}
+
+function uofm_batch_index_cleanup(){
+  // This should remove items indexed over 2 weeks ago.
+  $time = REQUEST_TIME;
+  $time = $time - ((3600 * 24) * 14); // subtract 2 weeks
+  try {
+    db_delete('uofm_batch_index_state')->isNotNull('idx_time')->condition('idx_time',$time,'<')->condition('status','2');
+  } catch (Exception $e){
+    watchdog_exception('error',$e);
+  }
 }

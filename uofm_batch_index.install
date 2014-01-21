@@ -1,0 +1,35 @@
+<?php
+
+function uofm_batch_index_schema(){
+  $schema = array();
+  
+  $schema['uofm_batch_index_state'] = array(
+    'description' => 'Holds the state of the objects in the queue.',
+    'fields' => array(
+      'pid' => array(
+        'description' => 'The identifier (PID) whose state we are storing.',
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 255,
+      ),
+      'state' => array(
+        'description' => 'The state of the object.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+        'unsigned' => FALSE,
+      ),
+      'idx_time' => array(
+        'description' => 'Timestamp the object was indexed.',
+        'type' => 'int',
+        'not null' => FALSE,
+        'unsigned' => FALSE,
+      ),
+    ),
+    'primary key' => array('pid'),
+  );
+
+  return $schema;
+
+}
