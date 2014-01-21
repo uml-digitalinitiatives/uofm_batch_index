@@ -62,7 +62,7 @@ function uofm_batch_index_setup(){
   
   $timer = timer_start('uofm_batch_index');
   
-  $query = db_select('uofm_batch_index','u')->condition('u.status',0)->fields('u',array('pid'));
+  $query = db_select('uofm_batch_index_state','u')->condition('u.status',0)->fields('u',array('pid'));
   $num_ops = $query->countQuery()->execute()->fetchField();
   
   if ($num_ops > 0){
@@ -103,7 +103,7 @@ function drush_uofm_batch_index($object){
    curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
    curl_exec($ch);
    curl_close($ch);
-   db_update('uofm_batch_index')->fields(array('state' => 2))->condition('pid',$object);
+   db_update('uofm_batch_index_state')->fields(array('state' => 2))->condition('pid',$object);
 }
 
 function drush_uofm_batch_index_finished($success, $results, $operations){
