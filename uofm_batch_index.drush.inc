@@ -114,7 +114,7 @@ function uofm_batch_index_preprocess(){
   $user = variable_get('islandora_collection_search_gsearch_user',NULL);
   $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
   if (is_null($user) || is_null($passwd)){
-    drupal_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
+    drush_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
     return;
   }
   module_load_include('inc', 'islandora', 'includes/utilities');
