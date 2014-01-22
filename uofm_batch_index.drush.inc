@@ -62,14 +62,14 @@ function uofm_batch_index_setup(){
   
   $timer = timer_start('uofm_batch_index');
   
-  $query = db_select('uofm_batch_index_state','u')->condition('u.status',0)->fields('u',array('pid'));
+  $query = db_select('uofm_batch_index_state','u')->condition('u.state',0)->fields('u',array('pid'));
   $num_ops = $query->countQuery()->execute()->fetchField();
   
   if ($num_ops > 0){
     drush_log("There are $num_ops items to be indexed.",'ok');
     $loop_count = 0;
-    while (timer_read('uofm_batch_index') < ($lock_timeout * 1000) && ($loop_count * $batch_size) + $batch_size < $num_ops ){
-      $results = $query->range($loop_count,$batch_size)->execute()->fetchAll();
+    while (timer_read('uofm_batch_index') < ($lock_timeout * 1000) && ($loop_count * $batch_size) < $num_ops ){
+      $results = $query->range($loop_count,$batch_size)->execute()->fetchAllAssoc();
       
       $batch = array(
          'operations' => $results,
@@ -84,26 +84,30 @@ function uofm_batch_index_setup(){
       $batch =& batch_get();
       $batch['progressive'] = FALSE;
       drush_backend_batch_process();
+      $loop_count += 1;
     }
+    $processed = ($num_ops < (($loop_count * $batch_size) + $batch_size) ? $num_ops : (($loop_count * $batch_size) + $batch_size));
+    watchdog('uofm_batch_index','Finished indexing %p records',array('%p'=>$processed),WATCHDOG_INFO);
   } else {
-    drush_log('There are NO objects to be indexed','ok');
+    watchdog('uofm_batch_index','There are NO objects to be indexed',NULL, WATCHDOG_INFO);
   }
   timer_stop('uofm_batch_index');
 }
 
 function drush_uofm_batch_index($object){
-   drush_log('Forcing index of object: ' . $object, 'ok');
+   drush_log('Forcing index of object: ' . $object['pid'], 'ok');
    $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
    $user = variable_get('islandora_collection_search_gsearch_user',NULL);
    $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
    $ch = curl_init();
-   curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object)));
+   curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object['pid'])));
    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
    curl_setopt($ch, CURLOPT_HEADER, 0);
    curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
    curl_exec($ch);
    curl_close($ch);
-   db_update('uofm_batch_index_state')->fields(array('state' => 2))->condition('pid',$object);
+   $time = (int)time();
+   db_update('uofm_batch_index_state')->fields(array('state' => 2, 'idx_time' => $time))->condition('pid',$object['pid']);
 }
 
 function drush_uofm_batch_index_finished($success, $results, $operations){
@@ -157,7 +161,7 @@ function uofm_batch_index_cleanup(){
   $time = REQUEST_TIME;
   $time = $time - ((3600 * 24) * 14); // subtract 2 weeks
   try {
-    db_delete('uofm_batch_index_state')->isNotNull('idx_time')->condition('idx_time',$time,'<')->condition('status','2');
+    db_delete('uofm_batch_index_state')->isNotNull('idx_time')->condition('idx_time',$time,'<')->condition('state','2');
   } catch (Exception $e){
     watchdog_exception('error',$e);
   }
