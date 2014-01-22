@@ -69,7 +69,7 @@ function uofm_batch_index_setup(){
     drush_log("There are $num_ops items to be indexed.",'ok');
     $loop_count = 0;
     while (timer_read('uofm_batch_index') < ($lock_timeout * 1000) && ($loop_count * $batch_size) < $num_ops ){
-      $results = $query->range($loop_count,$batch_size)->execute()->fetchAllAssoc();
+      $results = $query->range($loop_count,$batch_size)->execute()->fetchAll(PDO::FETCH_NUM);
       $operations = array();
       array_walk($results,'uofm_batch_index_op_array',&$operations);
       
@@ -102,12 +102,12 @@ function uofm_batch_index_op_array($val,$key,$out_array){
   }
 }
 function drush_uofm_batch_index($object){
-  drush_log('Forcing index of object: ' . $object['pid'], 'ok');
+  drush_log('Forcing index of object: ' . $object, 'ok');
   $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
   $user = variable_get('islandora_collection_search_gsearch_user',NULL);
   $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
   $ch = curl_init();
-  curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object['pid'])));
+  curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object)));
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
   curl_setopt($ch, CURLOPT_HEADER, 0);
   curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
@@ -115,7 +115,7 @@ function drush_uofm_batch_index($object){
   curl_close($ch);
   $time = (int)time();
   try {
-     db_update('uofm_batch_index_state')->fields(array('state' => 2, 'idx_time' => $time))->condition('pid',$object['pid'])->execute();
+     db_update('uofm_batch_index_state')->fields(array('state' => 2, 'idx_time' => $time))->condition('pid',$object)->execute();
   } catch (Exception $e) {
     watchdog_exception('uofm_batch_index',$e);
   }   
