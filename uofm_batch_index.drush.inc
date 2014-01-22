@@ -70,9 +70,11 @@ function uofm_batch_index_setup(){
     $loop_count = 0;
     while (timer_read('uofm_batch_index') < ($lock_timeout * 1000) && ($loop_count * $batch_size) < $num_ops ){
       $results = $query->range($loop_count,$batch_size)->execute()->fetchAllAssoc();
+      $operations = array();
+      array_walk($results,'uofm_batch_index_op_array',&$operations);
       
       $batch = array(
-         'operations' => $results,
+         'operations' => $operations,
          //'finished' => 'drush_uofm_batch_index_finished',
          'title' => t('Indexing missing object from repository'),
          'init_message' => t('Batch is starting.'),
@@ -94,20 +96,29 @@ function uofm_batch_index_setup(){
   timer_stop('uofm_batch_index');
 }
 
+function uofm_batch_index_op_array($val,$key,$out_array){
+  foreach ($val as $k => $v){
+    $out_array[] = array('drush_uofm_batch_index',array($k=>$v));
+  }
+}
 function drush_uofm_batch_index($object){
-   drush_log('Forcing index of object: ' . $object['pid'], 'ok');
-   $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
-   $user = variable_get('islandora_collection_search_gsearch_user',NULL);
-   $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
-   $ch = curl_init();
-   curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object['pid'])));
-   curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-   curl_setopt($ch, CURLOPT_HEADER, 0);
-   curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
-   curl_exec($ch);
-   curl_close($ch);
-   $time = (int)time();
-   db_update('uofm_batch_index_state')->fields(array('state' => 2, 'idx_time' => $time))->condition('pid',$object['pid']);
+  drush_log('Forcing index of object: ' . $object['pid'], 'ok');
+  $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
+  $user = variable_get('islandora_collection_search_gsearch_user',NULL);
+  $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object['pid'])));
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+  curl_setopt($ch, CURLOPT_HEADER, 0);
+  curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
+  curl_exec($ch);
+  curl_close($ch);
+  $time = (int)time();
+  try {
+     db_update('uofm_batch_index_state')->fields(array('state' => 2, 'idx_time' => $time))->condition('pid',$object['pid'])->execute();
+  } catch (Exception $e) {
+    watchdog_exception('uofm_batch_index',$e);
+  }   
 }
 
 function drush_uofm_batch_index_finished($success, $results, $operations){
