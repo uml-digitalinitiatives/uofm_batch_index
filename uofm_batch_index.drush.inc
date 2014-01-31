@@ -47,17 +47,18 @@ function uofm_batch_index_setup(){
     $timeout = -1.0;
 
     $max_exec = intval(ini_get('max_execution_time'));
+    $month = ((3600 * 24) * 30); // a month is a long time
     if ($max_exec > 0) {
       // max_execution_time could be 0 if run from CLI (drush?)
-      $lock_timeout = min(3600.0, $max_exec);
+      $lock_timeout = min($month, $max_exec);
     }
     else {
-      // Lock for an hour by default.
-      $lock_timeout = 3600.0;
+      // Lock for a month, if we are running with no timeout.
+      $lock_timeout = $month;
     }
   }
   else {
-    $lock_timeout = min(3600.0, $timeout);
+    $lock_timeout = min(86400.0, $timeout); // No more than 24 hours at a time.
   }
   
   $timer = timer_start('uofm_batch_index');
