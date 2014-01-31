@@ -89,7 +89,7 @@ function uofm_batch_index_setup(){
       drush_backend_batch_process();
       $loop_count += 1;
     }
-    $processed = ($num_ops < (($loop_count * $batch_size) + $batch_size) ? $num_ops : (($loop_count * $batch_size) + $batch_size));
+    $processed = ($num_ops - $query->countQuery()->execute()->fetchField());
     watchdog('uofm_batch_index','Finished indexing %p records',array('%p'=>$processed),WATCHDOG_INFO);
   } else {
     watchdog('uofm_batch_index','There are NO objects to be indexed',NULL, WATCHDOG_INFO);
