@@ -1,1 +1,32 @@
 <?php
+
+function uofm_batch_index_cron_queue_info() {
+  $queues['uofm_batch_reindex'] = array(
+    'worker callback' => 'uofm_batch_index_process',
+    'time' => 180,
+  );
+  return $queues;
+}
+
+function uofm_batch_index_process ($object){
+  if (is_string($object)) {
+    $obj = islandora_load_object($object);
+    if ($obj) {
+      $url = variable_get('islandora_collection_search_gsearch_endpoint','http://localhost:8080/fedoragsearch/rest');
+      $user = variable_get('islandora_collection_search_gsearch_user',NULL);
+      $passwd = variable_get('islandora_collection_search_gsearch_password',NULL);
+      $ch = curl_init();
+      curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query(array("operation"=>"updateIndex","action"=>"fromPid", "value"=> $object)));
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+      curl_setopt($ch, CURLOPT_HEADER, 0);
+      curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
+      $res = curl_exec($ch);
+      curl_close($ch);
+      $time = (int)time();
+      if ($res === FALSE) {
+        // throw new Exception("uofm_batch_index: re-indexing of item $object failed");
+        watchdog('uofm_batch_index', 'Error re-indexing @o', array('@o' => $object));
+      }
+    }
+  } 
+}
