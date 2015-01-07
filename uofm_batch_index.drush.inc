@@ -14,7 +14,7 @@ function uofm_batch_index_drush_command() {
   $items['uofm_batch_index_preprocess'] = array(
     'options' => array(
       'query' => array(
-        'description' => 'The SPARQL where clause, uses "$object" as the main variable.',
+        'description' => 'The SPARQL where clause, uses "?object" as the returned variable.',
       ),
       'pid' => array(
         'description' => 'A PID to re-index',
@@ -176,7 +176,7 @@ function __uofm_batch_index_sparql_query($where) {
   drupal_static_reset('islandora_get_tuque_connection');
   $connection = islandora_get_tuque_connection();
 
-  $query = 'select $object from <#ri> where { ';
+  $query = 'select ?object from <#ri> where { ';
   $query .= $where;
   $query .= ' }';
 
