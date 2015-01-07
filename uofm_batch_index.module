@@ -4,7 +4,7 @@
  * Queue information and functions
  */
 
-define('UOFM_BATCH_REINDEX', 'uofm_batch_reindex');
+define('UOFM_BATCH_INDEX_QUEUE', 'uofm_batch_reindex');
 
 /**
  * Implements hook_cron_queue_info().

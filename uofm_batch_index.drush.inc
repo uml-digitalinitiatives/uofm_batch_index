@@ -74,7 +74,7 @@ function uofm_batch_index_preprocess_queue() {
   $force = (bool) (!is_null(drush_get_option('force', NULL)));
   $recursive = (bool) (!is_null(drush_get_option('recursive', NULL)));
 
-  if (!is_null(drush_get_option('query', NULL))) { 
+  if (!is_null(drush_get_option('query', NULL))) {
     $query_param = drush_get_option('query');
     $results = __uofm_batch_index_sparql_query($query_param);
   }
@@ -158,7 +158,7 @@ function __uofm_batch_index_add_to_queue(array $items, $force = FALSE) {
         $solr_params = array('fl' => 'PID');
         $res = $solr->search($solr_query, 0, 10, $solr_params);
         if ($res && $res->response->numFound <= 0) {
-           // Only add if not in Solr index.
+          // Only add if not in Solr index.
           $add = TRUE;
         }
       }
