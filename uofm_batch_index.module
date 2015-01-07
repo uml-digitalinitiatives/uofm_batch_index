@@ -10,7 +10,7 @@ define('UOFM_BATCH_REINDEX', 'uofm_batch_reindex');
  * Implements hook_cron_queue_info().
  */
 function uofm_batch_index_cron_queue_info() {
-  $queues[UOFM_BATCH_REINDEX] = array(
+  $queues[UOFM_BATCH_INDEX_QUEUE] = array(
     'worker callback' => 'uofm_batch_index_process',
     'time' => 180,
   );
@@ -20,7 +20,7 @@ function uofm_batch_index_cron_queue_info() {
 /**
  * Initiate a re-index of the object.
  */
-function uofm_batch_index_process($object){
+function uofm_batch_index_process($object) {
   $obj = FALSE;
   if (is_string($object)) {
     module_load_include('inc', 'islandora', 'includes/utilities');
@@ -36,16 +36,19 @@ function uofm_batch_index_process($object){
     $user = variable_get('islandora_collection_search_gsearch_user', NULL);
     $passwd = variable_get('islandora_collection_search_gsearch_password', NULL);
     $ch = curl_init();
-    $params = array("operation" => "updateIndex", "action" => "fromPid", "value" => $object);
-    curl_setopt($ch, CURLOPT_URL,  $url . "?" . http_build_query($params));
+    $params = array(
+      "operation" => "updateIndex",
+      "action" => "fromPid",
+      "value" => $object,
+    );
+    curl_setopt($ch, CURLOPT_URL, $url . "?" . http_build_query($params));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_USERPWD, "$user:$passwd");
     $res = curl_exec($ch);
     curl_close($ch);
-    $time = (int)time();
+
     if ($res === FALSE) {
-      // throw new Exception("uofm_batch_index: re-indexing of item $object failed");
       watchdog('uofm_batch_index', 'Error re-indexing @o', array('@o' => $object));
     }
   } 

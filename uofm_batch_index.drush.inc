@@ -37,7 +37,10 @@ function uofm_batch_index_drush_command() {
     'aliases' => array('uofm_bi_pp'),
     'callback' => 'uofm_batch_index_preprocess_queue',
     'description' => 'Add items to the queue to be re-indexed on cron runs.',
-    'drupal dependencies' => array('islandora', 'islandora_solr', 'islandora_collection_search'),
+    'drupal dependencies' => array(
+      'islandora',
+      'islandora_solr',
+    ),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
   );
 
@@ -45,8 +48,7 @@ function uofm_batch_index_drush_command() {
 }
 
 /**
- * Load pids into the queue if they are not indexed
- * or if we are forcing a re-index.
+ * Load pids into the queue.
  */
 function uofm_batch_index_preprocess_queue() {
   module_load_include('php', 'islandora_solr', 'SolrPhpClient/Apache/Solr/Service');
@@ -59,12 +61,12 @@ function uofm_batch_index_preprocess_queue() {
   }
   $user = variable_get('islandora_collection_search_gsearch_user', NULL);
   $passwd = variable_get('islandora_collection_search_gsearch_password', NULL);
-  if (is_null($user) || is_null($passwd)){
-    drush_log('GSearch username or passwd has not been set, check the Collection Search admin page.','error');
+  if (is_null($user) || is_null($passwd)) {
+    drush_log('GSearch username or passwd has not been set, check the Collection Search admin page.', 'error');
     return;
   }
 
-  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr')); 
+  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr'));
   $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
   $solr->setCreateDocuments(0);
 
@@ -76,21 +78,21 @@ function uofm_batch_index_preprocess_queue() {
     $query_param = drush_get_option('query');
     $results = __uofm_batch_index_sparql_query($query_param);
   }
-  else if (!is_null(drush_get_option('pid', NULL))) {
+  elseif (!is_null(drush_get_option('pid', NULL))) {
     $pid = drush_get_option('pid', "");
     $results[] = $pid;
   }
-  else if (!is_null(drush_get_option('pidlist', NULL))) {
+  elseif (!is_null(drush_get_option('pidlist', NULL))) {
     $list = drush_get_option('pidlist', "");
-    $tmpRes = explode($list, ',');
-    foreach ($tmpRes as $t) {
+    $tmp_res = explode($list, ',');
+    foreach ($tmp_res as $t) {
       $t = trim($t);
       if (strlen($t) > 0) {
         $results[] = $t;
       }
     }
   }
-  else if (!is_null(drush_get_option('pidfile', NULL))) {
+  elseif (!is_null(drush_get_option('pidfile', NULL))) {
     if (file_exists(drush_get_option('pidfile', ''))) {
       $fp = @fopen(drush_get_option('pidfile', ''), 'r');
       if (!$fp) {
@@ -142,7 +144,7 @@ function __uofm_batch_index_recursive_query($pids, $results = array()) {
  */
 function __uofm_batch_index_add_to_queue(array $items, $force = FALSE) {
   module_load_include('inc', 'islandora', 'includes/utilities');
-  $queue = DrupalQueue::get(UOFM_BATCH_REINDEX);
+  $queue = DrupalQueue::get(UOFM_BATCH_INDEX_QUEUE);
 
   foreach ($items as $object) {
     if (is_string($object) && islandora_is_valid_pid($object)) {
@@ -151,10 +153,12 @@ function __uofm_batch_index_add_to_queue(array $items, $force = FALSE) {
         $add = TRUE;
       }
       else {
-        $solr_query = '+PID:("' . $object . '")'; // Search for all the possible PIDs
-        $solr_params = array('fl'=>'PID'); // Get the PID and dc.title
-        $res = $solr->search($solr_query,0,10,$solr_params);
-        if ($res && $res->response->numFound <= 0){ // Only add if not in Solr index
+        // Search for all the possible PIDs.
+        $solr_query = '+PID:("' . $object . '")';
+        $solr_params = array('fl' => 'PID');
+        $res = $solr->search($solr_query, 0, 10, $solr_params);
+        if ($res && $res->response->numFound <= 0) {
+           // Only add if not in Solr index.
           $add = TRUE;
         }
       }
@@ -173,8 +177,8 @@ function __uofm_batch_index_sparql_query($where) {
   $connection = islandora_get_tuque_connection();
 
   $query = 'select $object from <#ri> where { ';
-  $query.= $where;
-  $query.= ' }';
+  $query .= $where;
+  $query .= ' }';
 
   $temp = $connection->repository->ri->sparqlQuery($query, 'unlimited');
 
