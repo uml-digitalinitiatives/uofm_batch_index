@@ -25,7 +25,7 @@ function uofm_batch_index_process($object) {
   if (is_string($object)) {
     module_load_include('inc', 'islandora', 'includes/utilities');
     if (islandora_is_valid_pid($object)) {
-      $obj = islandora_load_object($object);
+      $obj = islandora_object_load($object);
     }
   }
   if (is_a($object, 'AbstractObject')) {

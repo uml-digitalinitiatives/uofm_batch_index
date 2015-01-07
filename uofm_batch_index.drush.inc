@@ -51,8 +51,6 @@ function uofm_batch_index_drush_command() {
  * Load pids into the queue.
  */
 function uofm_batch_index_preprocess_queue() {
-  module_load_include('php', 'islandora_solr', 'SolrPhpClient/Apache/Solr/Service');
-
   if (is_null(drush_get_option('query', NULL)) &&
     is_null(drush_get_option('pid', NULL)) &&
     is_null(drush_get_option("pidlist", NULL)) &&
@@ -65,10 +63,6 @@ function uofm_batch_index_preprocess_queue() {
     drush_log('GSearch username or passwd has not been set, check the Collection Search admin page.', 'error');
     return;
   }
-
-  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr'));
-  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
-  $solr->setCreateDocuments(0);
 
   $results = array();
   $force = (bool) (!is_null(drush_get_option('force', NULL)));
@@ -144,7 +138,12 @@ function __uofm_batch_index_recursive_query($pids, $results = array()) {
  */
 function __uofm_batch_index_add_to_queue(array $items, $force = FALSE) {
   module_load_include('inc', 'islandora', 'includes/utilities');
+  module_load_include('php', 'islandora_solr', 'SolrPhpClient/Apache/Solr/Service');
+
   $queue = DrupalQueue::get(UOFM_BATCH_INDEX_QUEUE);
+  $path_parts = parse_url(variable_get('islandora_solr_url', 'localhost:8080/solr'));
+  $solr = new Apache_Solr_Service($path_parts['host'], $path_parts['port'], $path_parts['path'] . '/');
+  $solr->setCreateDocuments(0);
 
   foreach ($items as $object) {
     if (is_string($object) && islandora_is_valid_pid($object)) {
@@ -184,7 +183,7 @@ function __uofm_batch_index_sparql_query($where) {
 
   $get_pid = function($o) {
     if (is_array($o) && array_key_exists('object', $o)) {
-      return $object['object']['value'];
+      return $o['object']['value'];
     }
     else {
       ob_start();
